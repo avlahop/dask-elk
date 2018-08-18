@@ -24,5 +24,6 @@ setup(
         'dask[complete]',
         'elasticsearch>=6.2',
         'pandas >= 0.19.0',
+        'mock',
     ]
 )
