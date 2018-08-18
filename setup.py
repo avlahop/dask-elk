@@ -3,7 +3,7 @@ from setuptools import setup
 
 
 setup(
-    name='dask-elk',
+    name='dask_elk',
     version='0.0.1',
     description='Dask connection with Elasticsearch',
     url='https://github.com/avlahop/dask-elk',
@@ -16,7 +16,8 @@ setup(
           "Programming Language :: Python :: 2.7",
     ],
     packages=[
-        'dask-elk',
+        'dask_elk',
+        'dask_elk.elk_entities',
     ],
     python_requires=">=2.7",
     install_requires=[
