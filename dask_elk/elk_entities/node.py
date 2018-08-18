@@ -23,3 +23,27 @@ class Node(object):
     @property
     def node_type(self):
         return self.__node_type
+
+
+class NodeRegistry(object):
+    def __init__(self):
+        self.__nodes = {}
+
+    @property
+    def nodes(self):
+        return self.__nodes
+
+    def get_nodes_from_elastic(self, elk_client):
+        """
+
+        :param elasticsearch.Elasticsearch elk_client: Instance of an
+        Elasticsearch client to connect to
+        """
+        node_client = elk_client.nodes
+        resp = node_client.info()
+        for node_id, node_info in resp['nodes'].iteritems():
+            publish_address = node_info['http']['publish_address']
+            roles = node_info['roles']
+            self.__nodes[node_id] = Node(node_id=node_id,
+                                         publish_address=publish_address,
+                                         node_type=tuple(roles))

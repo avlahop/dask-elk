@@ -9,8 +9,8 @@ import dask.dataframe as dd
 from dask import delayed
 import numpy as np
 
-
-from delayed_methods import _elasticsearch_scan
+from dask_elk.elk_entities.node import Node, NodeRegistry
+from delayed_methods import _elasticsearch_scan, bulk_save
 
 
 class IndexNotFoundException(Exception):
@@ -121,6 +121,11 @@ class DaskElasticClient(object):
         # indexes = self.__get_existing_indices(elk_client, indexes)
         # if not indexes:
         #     raise IndexNotFoundException('No indexes found')
+
+        #Get nodes info first
+        node_registry = NodeRegistry()
+        node_registry.get_nodes_from_elastic(elk_client)
+
         indices, index_mapping = self.__get_mappings(
             index_client=elk_client.indices,
             index=index,
