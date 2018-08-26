@@ -47,3 +47,13 @@ class NodeRegistry(object):
             self.__nodes[node_id] = Node(node_id=node_id,
                                          publish_address=publish_address,
                                          node_type=tuple(roles))
+
+    def get_node_by_id(self, node_id):
+        """
+        Get node object based on the nodes id
+        :param str node_id: The id of the node
+        :return: The node object
+        :rtype: Node
+        """
+
+        return self.__nodes[node_id]
