@@ -10,7 +10,7 @@ from dask_elk.parsers import DocumentParser
 class PartitionReader(object):
     def __init__(self, index, shard, meta, doc_type='_doc',
                  elastic_class=Elasticsearch, query=None,
-                 id=None, max=None, scroll_size=1000,  **kwargs):
+                 slice_id=None, slice_max=None, scroll_size=1000, **kwargs):
         """
         Intantiate the PartitionReader object. PartitionReader contains the
         the logic to get data from each shard (partition)
@@ -35,8 +35,8 @@ class PartitionReader(object):
         self.__shard = shard
         self.__meta = meta
         self.__doc_type = doc_type
-        self.__id = id
-        self.__max = max
+        self.__id = slice_id
+        self.__max = slice_max
         self.__scroll_size = scroll_size
         self.__client_args = kwargs
 
@@ -46,13 +46,16 @@ class PartitionReader(object):
             hosts=[self.__shard.node.publish_address, ],
             **self.__client_args)
 
+        if not self.__query:
+            self.__query = {}
+
         scan_args = dict(index=self.__index.name,
                          doc_type=self.__doc_type,
                          preference='_shards:{}'.format(self.__shard.shard_id),
                          query=dict(self.__query), size=self.__scroll_size
                          )
 
-        if self.__id:
+        if self.__id is not None:
             # We need sliced scroll request
             scroll_slice = {'id': self.__id, 'max': self.__max}
             scan_args.get('query', {}).update(
