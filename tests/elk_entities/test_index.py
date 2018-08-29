@@ -1,9 +1,10 @@
 import unittest
+from collections import OrderedDict
 
 from mock import MagicMock
 import numpy as np
 
-from dask_elk.elk_entities.index import IndexRegistry
+from dask_elk.elk_entities.index import IndexRegistry, Index
 from dask_elk.elk_entities.node import Node, NodeRegistry
 
 
@@ -75,6 +76,64 @@ class TestIndexRegistry(unittest.TestCase):
 
         index = index_registry.indices['index-2018.08.20']
         self.assertDictEqual(expected_mapping, index.mapping)
+
+    def test_calculate_meta_same_meta(self):
+        node_registry = MagicMock(spec_set=NodeRegistry)
+        node_registry.get_node_by_id.return_value = self.__node
+        index_registry = IndexRegistry(nodes_registry=node_registry)
+
+        # 2 indices the same mapping
+        index1 = Index(name='index1', mapping={'col1': np.dtype(object),
+                                               'col2': np.dtype('float64')})
+
+        index2 = Index(name='index2', mapping={'col1': np.dtype(object),
+                                               'col2': np.dtype('float64')})
+
+        index_registry.indices = {index1.name: index1, index2.name: index2}
+        meta = index_registry.calculate_meta()
+
+        self.assertEqual(len(meta.columns), 2)
+        self.assertListEqual(['col1', 'col2'], meta.columns.tolist())
+        self.assertEqual(np.dtype(object), meta['col1'].dtype)
+        self.assertEqual(np.dtype('float64'), meta['col2'].dtype)
+
+    def test_calculate_meta_different_meta(self):
+        node_registry = MagicMock(spec_set=NodeRegistry)
+        node_registry.get_node_by_id.return_value = self.__node
+        index_registry = IndexRegistry(nodes_registry=node_registry)
+
+        # 2 indices the same mapping
+        index1 = Index(name='index1', mapping={'col1': np.dtype(object)})
+
+        index2 = Index(name='index2', mapping={'col2': np.dtype('float64')})
+
+        index_registry.indices = {index1.name: index1, index2.name: index2}
+        meta = index_registry.calculate_meta()
+
+        self.assertEqual(len(meta.columns), 2)
+        self.assertListEqual(['col1', 'col2'], meta.columns.tolist())
+        self.assertEqual(np.dtype(object), meta['col1'].dtype)
+        self.assertEqual(np.dtype('float64'), meta['col2'].dtype)
+
+    def test_calculate_meta_same_column_different_type(self):
+        node_registry = MagicMock(spec_set=NodeRegistry)
+        node_registry.get_node_by_id.return_value = self.__node
+        index_registry = IndexRegistry(nodes_registry=node_registry)
+
+        # 2 indices the same mapping
+        index1 = Index(name='index1', mapping={'col1': np.dtype(object)})
+
+        index2 = Index(name='index2', mapping={'col1': np.dtype('float64')})
+        indices = OrderedDict()
+        indices[index1.name] = index1
+        indices[index2.name] = index2
+
+        index_registry.indices = indices
+        meta = index_registry.calculate_meta()
+
+        self.assertEqual(len(meta.columns), 1)
+        self.assertListEqual(['col1', ], meta.columns.tolist())
+        self.assertEqual(np.dtype('float64'), meta['col1'].dtype)
 
     @staticmethod
     def __get_indices_mapping():
