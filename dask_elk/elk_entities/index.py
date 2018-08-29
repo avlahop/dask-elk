@@ -1,4 +1,5 @@
 import numpy as np
+from dask.dataframe.utils import make_meta
 
 from dask_elk.elk_entities.shards import Shard
 
@@ -68,6 +69,26 @@ class IndexRegistry(object):
     @property
     def indices(self):
         return self.__indices
+
+    @indices.setter
+    def indices(self, value):
+        self.__indices = value
+
+    def calculate_meta(self):
+        """
+        Since Elasticsearch is schemaless it is possible that to indices might
+        have different mappings for the same "type" of documents. To get by
+        this, merge all meta's together. During reading the Parsers will be
+        responsible for handling mssing or different type of data.
+        :return: Empty dataframe containing the expected schema
+        :rtype: pandas.DataFrame
+        """
+        meta =  {}
+        for index in self.indices.itervalues():
+            meta.update(index.mapping)
+
+        meta_df = make_meta(meta)
+        return meta_df
 
     def get_indices_from_elasticsearch(self, elk_client, index=None,
                                        doc_type='_doc'):
