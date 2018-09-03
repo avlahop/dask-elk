@@ -223,8 +223,8 @@ class DaskElasticClient(object):
 
     def __get_number_of_partitions(self, no_of_docs):
         partitions = no_of_docs / self.__no_of_docs_per_partition
-        if partitions == 0:
-            partitions += 1
+        modulo = no_of_docs % self.__no_of_docs_per_partition
+        partitions = partitions + 1 if modulo > 0 else partitions
         return partitions
 
 

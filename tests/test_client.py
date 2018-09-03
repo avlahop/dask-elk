@@ -41,7 +41,7 @@ class TestClient(unittest.TestCase):
         mock_elk_class = MagicMock()
         self.__setup_nodes_repo(mocked_node_repo)
         self.__setup_index_repo(mocked_index_repo, index_name='test',
-                                no_of_shards=3, doc_per_shard=200000)
+                                no_of_shards=3, doc_per_shard=150000)
 
         client = DaskElasticClient(host='test-host', port=9200,
                                    client_klass=mock_elk_class)
