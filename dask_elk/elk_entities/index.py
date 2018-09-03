@@ -153,10 +153,10 @@ class IndexRegistry(object):
     def __get_shards_with_nodes(self, elk_client, index=None,
                                 doc_type='_doc'):
 
-        shard_info = elk_client.search_shards(index=index, doc_type=doc_type)
+        shard_info = elk_client.search_shards(index=index)
         for shard in shard_info['shards']:
             for shard_item in shard:
-                index = self.__indices[shard_item['index']]
+                index_obj = self.__indices[shard_item['index']]
                 shard_id = shard_item['shard']
                 node_id = shard_item['node']
                 state = shard_item['state']
@@ -164,12 +164,12 @@ class IndexRegistry(object):
                 node = self.__nodes_registry.get_node_by_id(node_id)
                 if state == 'STARTED' and primary:
                     shard = Shard(shard_id=shard_id, node=node, state=state)
-                    index.add_shard(shard)
+                    index_obj.add_shard(shard)
 
         # Unfortunately search_shards doesn't provide the doc_count info
-        shards = elk_client.cat.shards(index=index, doc_type=doc_type,
-                                       format='json',
-                                       h='shard,docs,prirep')
+        print index
+        shards = elk_client.cat.shards(index=index, format='json',
+                                       h='index,shard,docs,prirep')
 
         # for now get only primary shards
         shards = filter(lambda shard: shard['prirep'] == 'p', shards)

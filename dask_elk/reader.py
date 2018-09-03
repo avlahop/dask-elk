@@ -8,7 +8,7 @@ from dask_elk.parsers import DocumentParser
 
 
 class PartitionReader(object):
-    def __init__(self, index, shard, meta, doc_type='_doc',
+    def __init__(self, index, shard, meta, node=None, doc_type='_doc',
                  elastic_class=Elasticsearch, query=None,
                  slice_id=None, slice_max=None, scroll_size=1000, **kwargs):
         """
@@ -17,6 +17,8 @@ class PartitionReader(object):
         :param dask_elk.elk_entities.index.Index index: The index object
         :param dask_elk.elk_entities.shard.Shard shard: The shard from which to
         read data
+        :param dask_elk.elk_entities.node.Node node: The node to fetch data
+        from.
         :param pandas.DataFrame meta: Meta info for schema of returned data.
         :param str doc_type: The doc type the index belongs to
         :param elastic_class: Elasticsearch class to create client
@@ -33,6 +35,7 @@ class PartitionReader(object):
         self.__query = query
         self.__index = index
         self.__shard = shard
+        self.__node = node
         self.__meta = meta
         self.__doc_type = doc_type
         self.__id = slice_id
@@ -43,7 +46,9 @@ class PartitionReader(object):
     @delayed
     def read(self):
         client = self.__elastic_class(
-            hosts=[self.__shard.node.publish_address, ],
+            hosts=[
+                self.__node.publish_address if self.__node else
+                self.__shard.node.publish_address],
             **self.__client_args)
 
         if not self.__query:
