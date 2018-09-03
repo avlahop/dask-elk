@@ -73,6 +73,7 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+*.ipynb
 
 # pyenv
 .python-version
@@ -167,4 +168,11 @@ fabric.properties
 
 # Editor-based Rest Client
 .idea/httpRequests
+
+# Dask specific
+*.lock
+dask-worker-space
+
+
+
 

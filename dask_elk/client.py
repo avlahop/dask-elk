@@ -1,17 +1,11 @@
-import ssl
-import re
-from collections import defaultdict
 from elasticsearch import Elasticsearch
-from elasticsearch.connection import create_ssl_context
-from elasticsearch.helpers import scan, bulk
-from dask.dataframe.utils import make_meta
 import dask.dataframe as dd
-from dask import delayed
-import numpy as np
 
-from dask_elk.elk_entities.index import IndexRegistry, IndexNotFoundException
+from dask_elk.elk_entities.index import IndexRegistry
 from dask_elk.elk_entities.node import Node, NodeRegistry
-from delayed_methods import _elasticsearch_scan, bulk_save
+from dask_elk.reader import PartitionReader
+from delayed_methods import bulk_save
+
 
 class DaskElasticClient(object):
     def __init__(self, host, port=9200, index=None, doc_type=None,
@@ -32,7 +26,6 @@ class DaskElasticClient(object):
         self.__timeout = kwargs.get('timeout', 600)
         self.__max_retries = kwargs.get('max_retries', 10)
         self.__retry_on_timeout = kwargs.get('retry_on_timeout', True)
-
 
     @property
     def index(self):
@@ -101,9 +94,9 @@ class DaskElasticClient(object):
         # ssl_context.check_hostname = False
         # ssl_context.verify_mode = ssl.CERT_NONE
         client_args = {'hosts': [self.host, ], 'port': self.port,
-                       'scheme': self.scheme,}
+                       'scheme': self.scheme}
         if http_auth:
-            client_args.update({'http_auth':http_auth})
+            client_args.update({'http_auth': http_auth})
         elk_client = client_cls(**client_args)
 
         if not query:
@@ -113,76 +106,43 @@ class DaskElasticClient(object):
         if not doc_type:
             doc_type = self.__doc_type
 
-        # indexes = map(str.strip, index.split(','))
-        # indexes = self.__get_existing_indices(elk_client, indexes)
-        # if not indexes:
-        #     raise IndexNotFoundException('No indexes found')
-
-        #Get nodes info first
+        # Get nodes info first
         node_registry = NodeRegistry()
         node_registry.get_nodes_from_elastic(elk_client)
 
-        index_registry = IndexRegistry()
-        index_registry.get_indices_from_elasticsearch(elk_client.indices,
+        index_registry = IndexRegistry(nodes_registry=node_registry)
+        index_registry.get_indices_from_elasticsearch(elk_client,
                                                       index=index,
                                                       doc_type=doc_type)
 
-        indices, index_mapping = self.__get_mappings(
-            index_client=elk_client.indices,
-            index=index,
-            doc_type=doc_type)
-        index = ','.join(indices)
+        meta = index_registry.calculate_meta()
 
-        meta = make_meta(index_mapping)
         for field in map(str.strip, fields_as_list.split(',')):
             if field in meta.columns:
                 meta[field] = meta[field].astype(object)
-        shard_info = self.__get_shard_info(elk_client, index)
+
         delayed_objs = []
-        for index, shards in shard_info.iteritems():
-            for shard_id, shard in shards.iteritems():
-                no_of_docs = shard['docs']
-                node_ip = shard['node']['ip']
+        for index in index_registry.indices.itervalues():
+            for shard in index.shards:
+                no_of_docs = shard.no_of_docs
+                node = None
                 if self.wan_only:
-                    node_ip = self.host
-                node_port = shard['node']['port']
-                if self.wan_only:
-                    node_port = self.port
+                    node = Node(node_id='master', publish_address=self.host)
+
                 number_of_partitions = self.__get_number_of_partitions(
                     no_of_docs)
-                for id in range(number_of_partitions):
-                    http_auth = None
-                    if self.username and self.password:
-                        http_auth = (self.username, self.password)
-                    client_kwargs = {'hosts': [node_ip,],
-                                     'port': int(node_port),
-                                     'scheme': self.scheme,
-                                     'timeout': self.timeout,
-                                     'max_retries': self.max_retries,
-                                     'retry_on_timeout': self.retry_on_timeout}
-                    if http_auth:
-                        client_kwargs.update({'http_auth': http_auth})
+                for slice_id in range(number_of_partitions):
+                    part_reader = self.__create_partition_reader(
+                        index,
+                        shard,
+                        node, query,
+                        doc_type,
+                        meta,
+                        number_of_partitions,
+                        slice_id)
 
-                    # ssl_context = create_ssl_context()
-                    # ssl_context.check_hostname = False
-                    # ssl_context.verify_mode = ssl.CERT_NONE
+                    delayed_objs.append(part_reader.read())
 
-                    # client_kwargs.update({'verify_certs': self.verify_certs,
-                    #                       'ssl_context': ssl_context})
-                    scan_args = dict(index=index,
-                                     doc_type=doc_type,
-                                     preference='_shards:{}'.format(shard_id),
-                                     query=dict(query), size=self.__scroll_size
-                                     )
-
-                    if number_of_partitions > 1:
-                        scroll_slice = {'id': id, 'max': number_of_partitions}
-                        scan_args.get('query', {}).update(
-                            {'slice': scroll_slice})
-                    delayed_objs.append(
-                        delayed(_elasticsearch_scan)(client_cls, client_kwargs,
-                                                     meta=meta,
-                                                     **scan_args))
         return dd.from_delayed(delayed_objs, meta=meta)
 
     def save(self, data, index, doc_type, action='index',
@@ -208,110 +168,64 @@ class DaskElasticClient(object):
                           'action': action,
                           'dynamic_write_options': dynamic_write_options}
 
-        data = data.map_partitions(bulk_save,  client_cls, client_args,
-                                            meta=data, **bulk_arguments)
+        data = data.map_partitions(bulk_save, client_cls, client_args,
+                                   meta=data, **bulk_arguments)
 
         return data
 
-    def __get_shard_info(self, client, index):
+    def __create_partition_reader(self, index, shard, node, query, doc_type,
+                                  meta, number_of_partitions, slice_id):
         """
-        :param index:
-        :rtype: dict[str, dict[str, T]
-        :return: The shard info for for the index
+        Create partition reader object
+        :param dask_elk.elk_entities.index.Index index: Index to fetch data
+        :param dask_elk.elk_entities.shard.Shard shard:
+        :param dask_elk.elk_entities.node.Node node:
+        :param dict[str, T] query:
+        :param str doc_type:
+        :param pandas.DataFrame meta:
+        :param int number_of_partitions:
+        :param int slice_id:
+        :return: The partition reader object to read data from
+        :rtype: dask_elk.reader.PartitionReader
         """
-        shards = defaultdict(dict)
-        shard_info = client.search_shards(index=index)
-        for shard in shard_info['shards']:
-            for shard_item in shard:
-                index = shard_item['index']
-                shard_id = shard_item['shard']
-                node_id = shard_item['node']
-                state = shard_item['state']
-                if state == 'STARTED':
-                    shard_dict = {shard_id: {'node': {'id': node_id}}}
-                    shards[index].update(shard_dict)
+        http_auth = None
+        if self.username and self.password:
+            http_auth = (self.username, self.password)
+        client_kwargs = {'scheme': self.scheme,
+                         'timeout': self.timeout,
+                         'max_retries': self.max_retries,
+                         'retry_on_timeout': self.retry_on_timeout}
+        if http_auth:
+            client_kwargs.update({'http_auth': http_auth})
 
-        # Get info on the nodes that contain the associated shards
-        nodes = client.nodes
-        cat = client.cat
-        for index, values in shards.iteritems():
-            shard_dict = values
-            node_ids = []
-            for shard_id, shard in shard_dict.iteritems():
-                node_ids.append(shard['node']['id'])
+        part_reader = PartitionReader(
+            index=index, shard=shard,
+            meta=meta,
+            node=node,
+            doc_type=doc_type,
+            query=query,
+            scroll_size=self.__scroll_size,
+            **client_kwargs)
 
-            node_info = nodes.info(node_id=','.join(node_ids))
-            for node, value in node_info['nodes'].iteritems():
-                node_id = node
-                ip, port = value['http']['publish_address'].split(':')
+        if number_of_partitions > 1:
+            part_reader = PartitionReader(
+                index=index, shard=shard,
+                meta=meta,
+                node=node,
+                doc_type=doc_type,
+                query=query,
+                scroll_size=self.__scroll_size,
+                slice_id=slice_id,
+                slice_max=number_of_partitions,
+                **client_kwargs)
 
-                for shard_id, shard in shard_dict.iteritems():
-                    if node_id == shard['node']['id']:
-                        shard['node'].update({'ip': ip, 'port': port})
-
-            # Get info on the size of each shard
-            cat_shards = cat.shards(index=index, format='json',
-                                    h='shard,docs,prirep')
-            for shard in cat_shards:
-                if shard['prirep'] == 'p':
-                    shard_id = int(shard['shard'])
-                    no_of_docs = int(shard.get('docs', '0'))
-                    if shard_id in shard_dict:
-                        shard_dict[shard_id]['docs'] = no_of_docs
-
-        return shards
+        return part_reader
 
     def __get_number_of_partitions(self, no_of_docs):
-        return no_of_docs / self.__no_of_docs_per_partition + 1
-
-    def __create_mappings(self, mappings):
-        """
-
-        :param dict[str, dict[str, T]] mappings:
-        :return: dict[str, np.dtype]
-        """
-
-        index_maps = {}
-        for field_name, field_type in mappings.iteritems():
-            pandas_type = np.dtype(object)
-            type = field_type.get('type')
-            if type == 'integer' or type == 'long' or type == 'float':
-                pandas_type = np.dtype('float64')
-            elif type == 'date':
-                pandas_type = np.dtype('datetime64[ns]')
-            index_maps[field_name] = pandas_type
-
-        index_maps['_id'] = np.dtype(object)
-
-        return index_maps
-
-    @staticmethod
-    def __get_existing_indices(elk_client, index_list):
-        """
-
-        :param elasticsearch.Elasticsearch elk_client:
-        :param list[str] index_list:
-        :return: Existing indices from list
-        :rtype: list[str]
-        """
-        indices_client = elk_client.indices
-        existing_indices = []
-        for index_name in index_list:
-            if indices_client.exists(index=index_name):
-                existing_indices.append(index_name)
-
-        return existing_indices
-
-    def __get_mappings(self, index_client, index, doc_type):
-        try:
-            resp = index_client.get_mapping(index=index, doc_type=doc_type,
-                                            ignore_unavailable=True)
-            indices = resp.keys()
-            mappings = resp[indices[0]]['mappings'][doc_type]['properties']
-            mappings = self.__create_mappings(mappings)
-            return indices, mappings
-        except Exception:
-            raise IndexNotFoundException
+        partitions = no_of_docs / self.__no_of_docs_per_partition
+        if partitions == 0:
+            partitions += 1
+        return partitions
 
 
 def get_indices_for_period_of_time(period_of_time, index_prefix,
