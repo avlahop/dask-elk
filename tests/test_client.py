@@ -25,7 +25,6 @@ class TestClient(unittest.TestCase):
         self.__setup_index_repo(mocked_index_repo, index_name='test',
                                 no_of_shards=3)
 
-
         client = DaskElasticClient(host='test-host', port=9200,
                                    client_klass=mock_elk_class)
         dataframe = client.read()

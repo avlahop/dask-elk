@@ -1,18 +1,11 @@
-import ssl
-import re
-from collections import defaultdict
 from elasticsearch import Elasticsearch
-from elasticsearch.connection import create_ssl_context
-from elasticsearch.helpers import scan, bulk
-from dask.dataframe.utils import make_meta
 import dask.dataframe as dd
-from dask import delayed
-import numpy as np
 
-from dask_elk.elk_entities.index import IndexRegistry, IndexNotFoundException
+from dask_elk.elk_entities.index import IndexRegistry
 from dask_elk.elk_entities.node import Node, NodeRegistry
 from dask_elk.reader import PartitionReader
-from delayed_methods import _elasticsearch_scan, bulk_save
+from delayed_methods import bulk_save
+
 
 class DaskElasticClient(object):
     def __init__(self, host, port=9200, index=None, doc_type=None,
@@ -33,7 +26,6 @@ class DaskElasticClient(object):
         self.__timeout = kwargs.get('timeout', 600)
         self.__max_retries = kwargs.get('max_retries', 10)
         self.__retry_on_timeout = kwargs.get('retry_on_timeout', True)
-
 
     @property
     def index(self):
@@ -102,9 +94,9 @@ class DaskElasticClient(object):
         # ssl_context.check_hostname = False
         # ssl_context.verify_mode = ssl.CERT_NONE
         client_args = {'hosts': [self.host, ], 'port': self.port,
-                       'scheme': self.scheme,}
+                       'scheme': self.scheme}
         if http_auth:
-            client_args.update({'http_auth':http_auth})
+            client_args.update({'http_auth': http_auth})
         elk_client = client_cls(**client_args)
 
         if not query:
@@ -141,13 +133,13 @@ class DaskElasticClient(object):
                     no_of_docs)
                 for slice_id in range(number_of_partitions):
                     part_reader = self.__create_partition_reader(
-                                                        index,
-                                                        shard,
-                                                        node, query,
-                                                        doc_type,
-                                                        meta,
-                                                        number_of_partitions,
-                                                        slice_id)
+                        index,
+                        shard,
+                        node, query,
+                        doc_type,
+                        meta,
+                        number_of_partitions,
+                        slice_id)
 
                     delayed_objs.append(part_reader.read())
 
@@ -176,8 +168,8 @@ class DaskElasticClient(object):
                           'action': action,
                           'dynamic_write_options': dynamic_write_options}
 
-        data = data.map_partitions(bulk_save,  client_cls, client_args,
-                                            meta=data, **bulk_arguments)
+        data = data.map_partitions(bulk_save, client_cls, client_args,
+                                   meta=data, **bulk_arguments)
 
         return data
 
@@ -230,7 +222,7 @@ class DaskElasticClient(object):
         return part_reader
 
     def __get_number_of_partitions(self, no_of_docs):
-        partitions =  no_of_docs / self.__no_of_docs_per_partition
+        partitions = no_of_docs / self.__no_of_docs_per_partition
         if partitions == 0:
             partitions += 1
         return partitions

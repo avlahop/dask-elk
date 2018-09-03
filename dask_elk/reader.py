@@ -80,6 +80,3 @@ class PartitionReader(object):
             data_frame = data_frame[self.__meta.columns]
 
         return data_frame
-
-
-

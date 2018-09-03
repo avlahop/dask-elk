@@ -83,7 +83,7 @@ class IndexRegistry(object):
         :return: Empty dataframe containing the expected schema
         :rtype: pandas.DataFrame
         """
-        meta =  {}
+        meta = {}
         for index in self.indices.itervalues():
             meta.update(index.mapping)
 
