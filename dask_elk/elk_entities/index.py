@@ -102,8 +102,7 @@ class IndexRegistry(object):
         self.__indices = self.__get_mappings(elk_client.indices, index=index,
                                              doc_type=doc_type)
 
-        self.__get_shards_with_nodes(elk_client, index=index,
-                                     doc_type=doc_type)
+        self.__get_shards_with_nodes(elk_client, index=index)
 
     def __get_mappings(self,
                        index_client,
@@ -150,8 +149,7 @@ class IndexRegistry(object):
 
         return index_maps
 
-    def __get_shards_with_nodes(self, elk_client, index=None,
-                                doc_type='_doc'):
+    def __get_shards_with_nodes(self, elk_client, index=None):
 
         shard_info = elk_client.search_shards(index=index)
         for shard in shard_info['shards']:
@@ -166,15 +164,29 @@ class IndexRegistry(object):
                     shard = Shard(shard_id=shard_id, node=node, state=state)
                     index_obj.add_shard(shard)
 
-        # Unfortunately search_shards doesn't provide the doc_count info
-        print index
-        shards = elk_client.cat.shards(index=index, format='json',
-                                       h='index,shard,docs,prirep')
 
-        # for now get only primary shards
-        shards = filter(lambda shard: shard['prirep'] == 'p', shards)
-        for shard in shards:
-            index = self.__indices[shard['index']]
-            shard_obj = index.get_shard_by_id(int(shard['shard']))
-            docs = int(shard['docs']) if shard['docs'] else 0
-            shard_obj.no_of_docs = docs
+    @staticmethod
+    def get_documents_count(elk_client, query, index, doc_type='_doc', shard=None):
+        """
+        Method to get the document count for a specified query on a specified index. If shard is provided then the
+        query is executed on that specific shard
+        :param elasticsearch.Elasticsearch elk_client: Elasticsearch client to use
+        :param dict[str, T] query: Query to push down to elasticsearch
+        :param dask_elk.elk_entities.index.Index index: The index object to execute query on
+        :param str doc_type: The doc type the index belongs to
+        :param dask_elk.elk_entities.shards.Shard | None shard: The shard to execute the query on
+        :return: The number of documents
+        :rtype: int
+        """
+        preference = None
+        if shard:
+            preference = '_shards:{}'.format(shard.shard_id)
+
+        count_argurments = {'body': query, 'index': index.name, 'dco_type': doc_type}
+
+        if preference:
+            count_argurments.update({'preference': preference})
+
+        no_of_documents = elk_client.count(**count_argurments)
+
+        return no_of_documents

@@ -124,7 +124,7 @@ class DaskElasticClient(object):
         delayed_objs = []
         for index in index_registry.indices.itervalues():
             for shard in index.shards:
-                no_of_docs = shard.no_of_docs
+                no_of_docs = IndexRegistry.get_documents_count(elk_client, query, index, shard=shard)
                 node = None
                 if self.wan_only:
                     node = Node(node_id='master', publish_address=self.host)
@@ -139,7 +139,8 @@ class DaskElasticClient(object):
                         doc_type,
                         meta,
                         number_of_partitions,
-                        slice_id)
+                        slice_id
+                    )
 
                     delayed_objs.append(part_reader.read())
 
@@ -205,6 +206,8 @@ class DaskElasticClient(object):
             doc_type=doc_type,
             query=query,
             scroll_size=self.__scroll_size,
+            slice_id=slice_id,
+            slice_max=number_of_partitions,
             **client_kwargs)
 
         if number_of_partitions > 1:
@@ -222,9 +225,7 @@ class DaskElasticClient(object):
         return part_reader
 
     def __get_number_of_partitions(self, no_of_docs):
-        partitions = no_of_docs / self.__no_of_docs_per_partition
-        modulo = no_of_docs % self.__no_of_docs_per_partition
-        partitions = partitions + 1 if modulo > 0 else partitions
+        partitions = max(1, no_of_docs / self.__no_of_docs_per_partition)
         return partitions
 
 

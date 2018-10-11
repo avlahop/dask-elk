@@ -60,7 +60,7 @@ class PartitionReader(object):
                          query=dict(self.__query), size=self.__scroll_size
                          )
 
-        if self.__id is not None:
+        if self.__max > 1:
             # We need sliced scroll request
             scroll_slice = {'id': self.__id, 'max': self.__max}
             scan_args.get('query', {}).update(

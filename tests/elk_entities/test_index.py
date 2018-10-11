@@ -32,16 +32,11 @@ class TestIndexRegistry(unittest.TestCase):
         index = index_registry.indices['index-2018.08.20']
         index_shards = index.shards
         self.assertEqual(5, len(index_shards))
-        doc_counts_per_shard = dict(zip(range(0, 4), [5, 8, 6, 6, 1]))
 
         for i in range(0, 4):
             self.assertIsNotNone(index.get_shard_by_id(i))
             shard = index.get_shard_by_id(i)
             self.assertEqual(shard.node, self.__node)
-
-            self.assertEqual(shard.no_of_docs,
-                             doc_counts_per_shard[shard.shard_id])
-
 
     def test_get_indices_from_elasticsearch_mappings(self):
         elk_client = MagicMock()
