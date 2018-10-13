@@ -8,48 +8,28 @@ from delayed_methods import bulk_save
 
 
 class DaskElasticClient(object):
-    def __init__(self, host, port=9200, index=None, doc_type=None,
-                 client_klass=Elasticsearch, username=None, password=None,
-                 **kwargs):
-        self.__index = index
+    def __init__(self, host='localhost', port=9200, client_klass=Elasticsearch,
+                 username=None, password=None, wan_only=False,
+                 **client_kwargs):
         self.__host = host
         self.__port = port
         self.__client_klass = client_klass
-        self.__doc_type = doc_type
-        self.__no_of_docs_per_partition = 100000
-        self.__scroll_size = 1000
         self.__username = username
         self.__password = password
-        self.__wan_only = kwargs.get('wan_only', False)
-        self.__scheme = kwargs.get('scheme', 'http')
-        self.__verify_certs = kwargs.get('verify_certs', True)
-        self.__timeout = kwargs.get('timeout', 600)
-        self.__max_retries = kwargs.get('max_retries', 10)
-        self.__retry_on_timeout = kwargs.get('retry_on_timeout', True)
+        self.__wan_only = wan_only
+        self.__client_args = self.__create_client_args(client_kwargs)
 
     @property
-    def index(self):
-        return self.__index
-
-    @index.setter
-    def index(self, value):
-        self.__index = value
+    def client_args(self):
+        return self.__client_args
 
     @property
-    def host(self):
+    def hosts(self):
         return self.__host
 
     @property
     def port(self):
         return self.__port
-
-    @property
-    def doc_type(self):
-        return self.__doc_type
-
-    @property
-    def no_doc_per_partition(self):
-        return self.__no_of_docs_per_partition
 
     @property
     def username(self):
@@ -63,48 +43,33 @@ class DaskElasticClient(object):
     def wan_only(self):
         return self.__wan_only
 
-    @property
-    def scheme(self):
-        return self.__scheme
+    def read(self, query=None, index=None, doc_type=None,
+             number_of_docs_per_partition=1000000, size=1000,
+             fields_as_list=None,
+             **kwargs):
+        """
 
-    @property
-    def verify_certs(self):
-        return self.__verify_certs
+        :param dict[str, T] | None query: The query to push down to ELK.
+        :param str index: String of the index/ices to execute query on.
+        :param str doc_type: Type index belongs too
+        :param int number_of_docs_per_partition: Number of documents for each
+        partition/task created by the readers.
+        :param int size: The scroll size
+        :param str | None fields_as_list: Comma seperated list of fields to be
+        treated as object
+        :param kwargs: Additional keyword arguments to pass to the search method
+        of python Elasticsearch client
+        :return: Dask Dataframe containing the data
+        :rtype: dask.dataframe.DataFrame
+        """
 
-    @property
-    def timeout(self):
-        return self.__timeout
-
-    @property
-    def max_retries(self):
-        return self.__max_retries
-
-    @property
-    def retry_on_timeout(self):
-        return self.__retry_on_timeout
-
-    def read(self, query=None, index=None, doc_type=None, **kwargs):
-        fields_as_list = kwargs.get('fields_as_list', '')
+        fields_as_list = fields_as_list
         client_cls = self.__client_klass
-        http_auth = None
-        if self.username and self.password:
-            http_auth = (self.username, self.password)
 
-        # ssl_context = create_ssl_context()
-        # ssl_context.check_hostname = False
-        # ssl_context.verify_mode = ssl.CERT_NONE
-        client_args = {'hosts': [self.host, ], 'port': self.port,
-                       'scheme': self.scheme}
-        if http_auth:
-            client_args.update({'http_auth': http_auth})
-        elk_client = client_cls(**client_args)
+        elk_client = client_cls(**self.client_args)
 
         if not query:
             query = {}
-        if not index:
-            index = self.__index
-        if not doc_type:
-            doc_type = self.__doc_type
 
         # Get nodes info first
         node_registry = NodeRegistry()
@@ -116,21 +81,23 @@ class DaskElasticClient(object):
                                                       doc_type=doc_type)
 
         meta = index_registry.calculate_meta()
-
-        for field in map(str.strip, fields_as_list.split(',')):
-            if field in meta.columns:
-                meta[field] = meta[field].astype(object)
+        if fields_as_list:
+            for field in map(str.strip, fields_as_list.split(',')):
+                if field in meta.columns:
+                    meta[field] = meta[field].astype(object)
 
         delayed_objs = []
         for index in index_registry.indices.itervalues():
             for shard in index.shards:
-                no_of_docs = IndexRegistry.get_documents_count(elk_client, query, index, shard=shard)
+                no_of_docs = IndexRegistry.get_documents_count(elk_client,
+                                                               query, index,
+                                                               shard=shard)
                 node = None
                 if self.wan_only:
-                    node = Node(node_id='master', publish_address=self.host)
+                    node = Node(node_id='master', publish_address=self.hosts)
 
                 number_of_partitions = self.__get_number_of_partitions(
-                    no_of_docs)
+                    no_of_docs, number_of_docs_per_partition)
                 for slice_id in range(number_of_partitions):
                     part_reader = self.__create_partition_reader(
                         index,
@@ -139,7 +106,9 @@ class DaskElasticClient(object):
                         doc_type,
                         meta,
                         number_of_partitions,
-                        slice_id
+                        slice_id,
+                        size,
+                        **kwargs
                     )
 
                     delayed_objs.append(part_reader.read())
@@ -158,7 +127,7 @@ class DaskElasticClient(object):
         :return:
         """
         client_cls = self.__client_klass
-        client_args = {'hosts': [self.host, ], 'port': self.port,
+        client_args = {'hosts': [self.hosts, ], 'port': self.port,
                        'scheme': self.scheme, }
         http_auth = None
         if self.username and self.password:
@@ -175,7 +144,8 @@ class DaskElasticClient(object):
         return data
 
     def __create_partition_reader(self, index, shard, node, query, doc_type,
-                                  meta, number_of_partitions, slice_id):
+                                  meta, number_of_partitions, slice_id, size,
+                                  **scan_arguments):
         """
         Create partition reader object
         :param dask_elk.elk_entities.index.Index index: Index to fetch data
@@ -186,18 +156,10 @@ class DaskElasticClient(object):
         :param pandas.DataFrame meta:
         :param int number_of_partitions:
         :param int slice_id:
+        :param int size: The scroll size
         :return: The partition reader object to read data from
         :rtype: dask_elk.reader.PartitionReader
         """
-        http_auth = None
-        if self.username and self.password:
-            http_auth = (self.username, self.password)
-        client_kwargs = {'scheme': self.scheme,
-                         'timeout': self.timeout,
-                         'max_retries': self.max_retries,
-                         'retry_on_timeout': self.retry_on_timeout}
-        if http_auth:
-            client_kwargs.update({'http_auth': http_auth})
 
         part_reader = PartitionReader(
             index=index, shard=shard,
@@ -205,10 +167,12 @@ class DaskElasticClient(object):
             node=node,
             doc_type=doc_type,
             query=query,
-            scroll_size=self.__scroll_size,
+            scroll_size=size,
             slice_id=slice_id,
             slice_max=number_of_partitions,
-            **client_kwargs)
+            client_args=self.__client_args,
+            **scan_arguments
+        )
 
         if number_of_partitions > 1:
             part_reader = PartitionReader(
@@ -217,16 +181,28 @@ class DaskElasticClient(object):
                 node=node,
                 doc_type=doc_type,
                 query=query,
-                scroll_size=self.__scroll_size,
+                scroll_size=size,
                 slice_id=slice_id,
                 slice_max=number_of_partitions,
-                **client_kwargs)
+                client_args = self.client_args,
+                **scan_arguments
+            )
 
         return part_reader
 
-    def __get_number_of_partitions(self, no_of_docs):
-        partitions = max(1, no_of_docs / self.__no_of_docs_per_partition)
+    def __get_number_of_partitions(self, no_of_docs, no_of_docs_per_partition):
+        partitions = max(1, no_of_docs / no_of_docs_per_partition)
         return partitions
+
+    def __create_client_args(self, client_kwargs):
+        client_arguments = {'hosts': self.hosts, 'port': self.port}
+        if self.username and self.password:
+            client_arguments.update(
+                {'http_auth': (self.username, self.password)})
+        if client_kwargs:
+            client_arguments.update(client_kwargs)
+
+        return client_arguments
 
 
 def get_indices_for_period_of_time(period_of_time, index_prefix,
