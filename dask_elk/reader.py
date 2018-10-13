@@ -10,7 +10,8 @@ from dask_elk.parsers import DocumentParser
 class PartitionReader(object):
     def __init__(self, index, shard, meta, node=None, doc_type='_doc',
                  elastic_class=Elasticsearch, query=None,
-                 slice_id=None, slice_max=None, scroll_size=1000, **kwargs):
+                 slice_id=None, slice_max=None, scroll_size=1000,
+                 client_args=None, **kwargs):
         """
         Intantiate the PartitionReader object. PartitionReader contains the
         the logic to get data from each shard (partition)
@@ -24,11 +25,15 @@ class PartitionReader(object):
         :param elastic_class: Elasticsearch class to create client
         :param dict[str, T] query: The query to be pushed down to the ELK
         :param int id: The scroll id for concurrent scroll query. See
-        https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-scroll.html#sliced-scroll
+        https://www.elastic.co/guide/en/elasticsearch/reference/current/
+        search-request-scroll.html#sliced-scroll
         :param max: Max number of slices
         :param int scroll_size: Number of documents to fetch for eacch scroll
         request
-        :param dict[str, T] kwargs: Additional arguments to pass to client.
+        :param dict[str, T] | None client_args: Additional arguments to pass to
+        client.
+        :param dict[str, T] kwargs: Additional scan arguments to be passed to
+        python's Elasticsearch search method.
         """
 
         self.__elastic_class = elastic_class
@@ -41,15 +46,19 @@ class PartitionReader(object):
         self.__id = slice_id
         self.__max = slice_max
         self.__scroll_size = scroll_size
-        self.__client_args = kwargs
+        self.__client_args = client_args
+        self.__additional_scan_args = kwargs
 
     @delayed
     def read(self):
-        client = self.__elastic_class(
-            hosts=[
+        client_args = {}
+        if self.__client_args:
+            client_args = self.__client_args.copy()
+        client_args['hosts'] = [
                 self.__node.publish_address if self.__node else
-                self.__shard.node.publish_address],
-            **self.__client_args)
+                self.__shard.node.publish_address]
+
+        client = self.__elastic_class(**client_args)
 
         if not self.__query:
             self.__query = {}
@@ -65,6 +74,9 @@ class PartitionReader(object):
             scroll_slice = {'id': self.__id, 'max': self.__max}
             scan_args.get('query', {}).update(
                 {'slice': scroll_slice})
+
+        if self.__additional_scan_args:
+            scan_args.update(self.__additional_scan_args)
 
         results = []
         for hit in scan(client, **scan_args):

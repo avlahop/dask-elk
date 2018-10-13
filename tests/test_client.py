@@ -15,6 +15,14 @@ class TestClient(unittest.TestCase):
     def setUp(self):
         self.__node = Node(node_id='node_id', publish_address='1.1.1.1:9200')
 
+    def test_default_values(self):
+        client = DaskElasticClient()
+        self.assertEqual(client.hosts, 'localhost')
+        self.assertEqual(client.port, 9200)
+        self.assertIsNone(client.username)
+        self.assertIsNone(client.password)
+
+
     @patch('dask_elk.client.IndexRegistry', spec_set=IndexRegistry)
     @patch('dask_elk.client.NodeRegistry', spec_set=NodeRegistry)
     @patch('dask_elk.client.PartitionReader', spec_set=PartitionReader)
@@ -41,7 +49,7 @@ class TestClient(unittest.TestCase):
         mock_elk_class = MagicMock()
         self.__setup_nodes_repo(mocked_node_repo)
         self.__setup_index_repo(mocked_index_repo, index_name='test',
-                                no_of_shards=3, doc_per_shard=200000)
+                                no_of_shards=3, doc_per_shard=2000000)
 
         client = DaskElasticClient(host='test-host', port=9200,
                                    client_klass=mock_elk_class)
