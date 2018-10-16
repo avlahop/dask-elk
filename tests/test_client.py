@@ -1,7 +1,11 @@
 import unittest
 
 import numpy as np
+import pandas as pd
+
 from dask.dataframe.utils import make_meta
+import dask.dataframe as dd
+
 from mock import MagicMock, patch
 
 from dask_elk.client import DaskElasticClient
@@ -74,3 +78,16 @@ class TestClient(unittest.TestCase):
 
         mocked_index_repo().calculate_meta.return_value = make_meta(
             {'col1': np.dtype(object), 'col2': np.dtype('float64')})
+
+    def test_save(self):
+        mock_elk_class = MagicMock()
+        client = DaskElasticClient(host='test-host', port=9200,
+                                   client_klass=mock_elk_class)
+
+        dataframe = MagicMock(spec_set=dd.DataFrame)
+
+        client.save(dataframe, index='my-idnex-{a}',
+                    doc_type='_doc', action='index')
+
+        dataframe.map_partitions.assert_called_once()
+
