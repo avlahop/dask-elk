@@ -26,12 +26,12 @@ def _elasticsearch_scan(client_cls, client_kwargs, meta=None, **params):
     return data_frame
 
 
-def bulk_save(dataframe, client_cls, client_args, **kwargs):
+def bulk_save(partition, client_cls, client_args, **kwargs):
     """
     Method to save a dataframe to Elasticsearch index. This method should be
     applied to all dask dataframe partitions using map_partitions method.
 
-    :param pandas.DataFrame dataframe: The datfrme partition to save in ELK
+    :param pandas.DataFrame partition: The dataframe partition to save in ELK
     :param type client_cls: Elasticsearch client class to be instantiated
     :param dict[str, T] client_args: Arguments to be passed to Elasticsearch
     client class during instantiation.
@@ -41,7 +41,7 @@ def bulk_save(dataframe, client_cls, client_args, **kwargs):
     :rtype: pd.DataFrame
     """
     elk_client = client_cls(**(client_args or {}))
-    records = dataframe.to_dict(orient='records')
+    records = partition.to_dict(orient='records')
     actions = []
 
     for record in records:
@@ -62,9 +62,6 @@ def bulk_save(dataframe, client_cls, client_args, **kwargs):
             action.update(record)
         actions.append(action)
 
-    try:
-        bulk(elk_client, actions, stats_only=False)
-    except Exception:
-        pass
-    finally:
-        return dataframe
+    bulk(elk_client, actions, stats_only=False)
+
+    return partition
