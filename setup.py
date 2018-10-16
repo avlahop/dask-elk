@@ -23,7 +23,11 @@ setup(
     install_requires=[
         'dask[complete]',
         'elasticsearch>=6.2',
-        'pandas >= 0.19.0',
+        'pandas>=0.19.0',
+    ],
+    tests_require=[
         'mock',
-    ]
+        'nose',
+    ],
+    test_suite='nose.collector',
 )

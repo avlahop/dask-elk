@@ -57,8 +57,8 @@ class DaskElasticClient(object):
         :param int size: The scroll size
         :param str | None fields_as_list: Comma seperated list of fields to be
         treated as object
-        :param kwargs: Additional keyword arguments to pass to the search method
-        of python Elasticsearch client
+        :param kwargs: Additional keyword arguments to pass to the search
+        method of python Elasticsearch client
         :return: Dask Dataframe containing the data
         :rtype: dask.dataframe.DataFrame
         """
@@ -184,7 +184,7 @@ class DaskElasticClient(object):
                 scroll_size=size,
                 slice_id=slice_id,
                 slice_max=number_of_partitions,
-                client_args = self.client_args,
+                client_args=self.client_args,
                 **scan_arguments
             )
 

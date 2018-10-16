@@ -22,7 +22,6 @@ class TestClient(unittest.TestCase):
         self.assertIsNone(client.username)
         self.assertIsNone(client.password)
 
-
     @patch('dask_elk.client.IndexRegistry', spec_set=IndexRegistry)
     @patch('dask_elk.client.NodeRegistry', spec_set=NodeRegistry)
     @patch('dask_elk.client.PartitionReader', spec_set=PartitionReader)
@@ -40,12 +39,12 @@ class TestClient(unittest.TestCase):
         self.assertEqual(dataframe.col1.dtype, np.dtype(object))
         self.assertEqual(dataframe.col2.dtype, np.dtype('float64'))
 
-
     @patch('dask_elk.client.IndexRegistry', spec_set=IndexRegistry)
     @patch('dask_elk.client.NodeRegistry', spec_set=NodeRegistry)
     @patch('dask_elk.client.PartitionReader', spec_set=PartitionReader)
     def test_read_three_shards_six_partitions(self, mocked_part_reader,
-                                     mocked_node_repo, mocked_index_repo):
+                                              mocked_node_repo,
+                                              mocked_index_repo):
         mock_elk_class = MagicMock()
         self.__setup_nodes_repo(mocked_node_repo)
         self.__setup_index_repo(mocked_index_repo, index_name='test',
@@ -64,7 +63,6 @@ class TestClient(unittest.TestCase):
 
     def __setup_index_repo(self, mocked_index_repo, index_name, no_of_shards=3,
                            doc_per_shard=1000):
-
         index = Index(name='index_name')
         for shard in range(no_of_shards):
             shard = Shard(shard_id=shard, node=self.__node,
@@ -76,5 +74,3 @@ class TestClient(unittest.TestCase):
 
         mocked_index_repo().calculate_meta.return_value = make_meta(
             {'col1': np.dtype(object), 'col2': np.dtype('float64')})
-
-
