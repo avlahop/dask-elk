@@ -164,17 +164,21 @@ class IndexRegistry(object):
                     shard = Shard(shard_id=shard_id, node=node, state=state)
                     index_obj.add_shard(shard)
 
-
     @staticmethod
-    def get_documents_count(elk_client, query, index, doc_type='_doc', shard=None):
+    def get_documents_count(elk_client, query, index, doc_type='_doc',
+                            shard=None):
         """
-        Method to get the document count for a specified query on a specified index. If shard is provided then the
-        query is executed on that specific shard
-        :param elasticsearch.Elasticsearch elk_client: Elasticsearch client to use
+        Method to get the document count for a specified query on a specified
+        index. If shard is provided then the query is executed on that
+        specific shard
+        :param elasticsearch.Elasticsearch elk_client: Elasticsearch client to
+        use
         :param dict[str, T] query: Query to push down to elasticsearch
-        :param dask_elk.elk_entities.index.Index index: The index object to execute query on
+        :param dask_elk.elk_entities.index.Index index: The index object to
+        execute query on
         :param str doc_type: The doc type the index belongs to
-        :param dask_elk.elk_entities.shards.Shard | None shard: The shard to execute the query on
+        :param dask_elk.elk_entities.shards.Shard | None shard: The shard to
+        execute the query on
         :return: The number of documents
         :rtype: int
         """
@@ -182,11 +186,12 @@ class IndexRegistry(object):
         if shard:
             preference = '_shards:{}'.format(shard.shard_id)
 
-        count_argurments = {'body': query, 'index': index.name, 'dco_type': doc_type}
+        count_argurments = {'body': query, 'index': index.name,
+                            'doc_type': doc_type}
 
         if preference:
             count_argurments.update({'preference': preference})
 
         no_of_documents = elk_client.count(**count_argurments)
 
-        return no_of_documents
+        return no_of_documents['count']

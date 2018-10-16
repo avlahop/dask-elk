@@ -11,7 +11,7 @@ from dask_elk.elk_entities.node import Node, NodeRegistry
 class TestIndexRegistry(unittest.TestCase):
     def setUp(self):
         self.__node = Node(node_id='E43TT5r9Q9-VWckuAXLf0Q',
-                    publish_address='1.1.1.1:9200')
+                           publish_address='1.1.1.1:9200')
 
     def test_get_indices_from_elasticsearch_shards(self):
         elk_client = MagicMock()
@@ -179,84 +179,84 @@ class TestIndexRegistry(unittest.TestCase):
     @staticmethod
     def __mocked_search_shards():
         return {
-          "nodes": {
-            "E43TT5r9Q9-VWckuAXLf0Q": {
-              "name": "E43TT5r",
-              "ephemeral_id": "RPOsajztT0eTGmsR6vYAOw",
-              "transport_address": "172.18.0.2:9300",
-              "attributes": {}
-            }
-          },
-          "indices": {
-            "index-2018.08.20": {}
-          },
-          "shards": [
-            [
-              {
-                "state": "STARTED",
-                "primary": True,
-                "node": "E43TT5r9Q9-VWckuAXLf0Q",
-                "relocating_node": None,
-                "shard": 0,
-                "index": "index-2018.08.20",
-                "allocation_id": {
-                  "id": "7gsIfTB5RTm8BoR29Sff7g"
+            "nodes": {
+                "E43TT5r9Q9-VWckuAXLf0Q": {
+                    "name": "E43TT5r",
+                    "ephemeral_id": "RPOsajztT0eTGmsR6vYAOw",
+                    "transport_address": "172.18.0.2:9300",
+                    "attributes": {}
                 }
-              }
-            ],
-            [
-              {
-                "state": "STARTED",
-                "primary": True,
-                "node": "E43TT5r9Q9-VWckuAXLf0Q",
-                "relocating_node": None,
-                "shard": 1,
-                "index": "index-2018.08.20",
-                "allocation_id": {
-                  "id": "53hs_j-nRbioSiah3hiYAw"
-                }
-              }
-            ],
-            [
-              {
-                "state": "STARTED",
-                "primary": True,
-                "node": "E43TT5r9Q9-VWckuAXLf0Q",
-                "relocating_node": None,
-                "shard": 2,
-                "index": "index-2018.08.20",
-                "allocation_id": {
-                  "id": "7LiMF80YSOmCT_e0ZWYjrg"
-                }
-              }
-            ],
-            [
-              {
-                "state": "STARTED",
-                "primary": True,
-                "node": "E43TT5r9Q9-VWckuAXLf0Q",
-                "relocating_node": None,
-                "shard": 3,
-                "index": "index-2018.08.20",
-                "allocation_id": {
-                  "id": "P_vAnbMcQU20yB3Stmvb5A"
-                }
-              }
-            ],
-            [
-              {
-                "state": "STARTED",
-                "primary": True,
-                "node": "E43TT5r9Q9-VWckuAXLf0Q",
-                "relocating_node": None,
-                "shard": 4,
-                "index": "index-2018.08.20",
-                "allocation_id": {
-                  "id": "8fwaA0kWTCeI01tUxW-K1Q"
-                }
-              }
+            },
+            "indices": {
+                "index-2018.08.20": {}
+            },
+            "shards": [
+                [
+                    {
+                        "state": "STARTED",
+                        "primary": True,
+                        "node": "E43TT5r9Q9-VWckuAXLf0Q",
+                        "relocating_node": None,
+                        "shard": 0,
+                        "index": "index-2018.08.20",
+                        "allocation_id": {
+                            "id": "7gsIfTB5RTm8BoR29Sff7g"
+                        }
+                    }
+                ],
+                [
+                    {
+                        "state": "STARTED",
+                        "primary": True,
+                        "node": "E43TT5r9Q9-VWckuAXLf0Q",
+                        "relocating_node": None,
+                        "shard": 1,
+                        "index": "index-2018.08.20",
+                        "allocation_id": {
+                            "id": "53hs_j-nRbioSiah3hiYAw"
+                        }
+                    }
+                ],
+                [
+                    {
+                        "state": "STARTED",
+                        "primary": True,
+                        "node": "E43TT5r9Q9-VWckuAXLf0Q",
+                        "relocating_node": None,
+                        "shard": 2,
+                        "index": "index-2018.08.20",
+                        "allocation_id": {
+                            "id": "7LiMF80YSOmCT_e0ZWYjrg"
+                        }
+                    }
+                ],
+                [
+                    {
+                        "state": "STARTED",
+                        "primary": True,
+                        "node": "E43TT5r9Q9-VWckuAXLf0Q",
+                        "relocating_node": None,
+                        "shard": 3,
+                        "index": "index-2018.08.20",
+                        "allocation_id": {
+                            "id": "P_vAnbMcQU20yB3Stmvb5A"
+                        }
+                    }
+                ],
+                [
+                    {
+                        "state": "STARTED",
+                        "primary": True,
+                        "node": "E43TT5r9Q9-VWckuAXLf0Q",
+                        "relocating_node": None,
+                        "shard": 4,
+                        "index": "index-2018.08.20",
+                        "allocation_id": {
+                            "id": "8fwaA0kWTCeI01tUxW-K1Q"
+                        }
+                    }
+                ]
             ]
-          ]
         }
 
     @staticmethod

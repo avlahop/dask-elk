@@ -17,7 +17,7 @@ class TestPartitionReader(unittest.TestCase):
     @staticmethod
     def __prepare_index():
         index_name = 'test_index'
-        mapping = {'col1': np.dtype(object), 'col2':np.dtype('float64')}
+        mapping = {'col1': np.dtype(object), 'col2': np.dtype('float64')}
         node = Node(node_id='nodeid', publish_address='1.1.1.1:9200')
         shard = Shard(shard_id=0, node=node, state='started', no_of_docs=10)
         index = Index(name=index_name, mapping=mapping)
@@ -34,7 +34,7 @@ class TestPartitionReader(unittest.TestCase):
                                  elastic_class=mock_elk_class)
 
         delayed_obj = reader.read()
-        df = delayed_obj.compute(scheduler='single-threaded')
+        delayed_obj.compute(scheduler='single-threaded')
         mock_elk_class.assert_called_with(hosts=['1.1.1.1:9200', ])
         mock_scan.assert_called_with(mock_elk_class(),
                                      **dict(mock_elk_class(),
@@ -52,7 +52,7 @@ class TestPartitionReader(unittest.TestCase):
                                  slice_max=2)
 
         delayed_obj = reader.read()
-        df = delayed_obj.compute(scheduler='single-threaded')
+        delayed_obj.compute(scheduler='single-threaded')
         mock_elk_class.assert_called_with(hosts=['1.1.1.1:9200', ])
         mock_scan.assert_called_with(mock_elk_class(),
                                      **dict(mock_elk_class(),

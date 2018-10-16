@@ -1,6 +1,5 @@
 import unittest
 
-from elasticsearch import Elasticsearch
 from mock import MagicMock
 
 from dask_elk.elk_entities.node import NodeRegistry
