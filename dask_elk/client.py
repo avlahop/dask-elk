@@ -115,29 +115,21 @@ class DaskElasticClient(object):
 
         return dd.from_delayed(delayed_objs, meta=meta)
 
-    def save(self, data, index, doc_type, action='index',
-             dynamic_write_options=None):
+    def save(self, data, index, doc_type, action='index'):
         """
 
         :param dask.dataframe.DataFrame data:
         :param str index:
         :param str doc_type:
         :param str action:
-        :param dict[str, T] dynamic_write_options:
         :return:
         """
         client_cls = self.__client_klass
-        client_args = {'hosts': [self.hosts, ], 'port': self.port,
-                       'scheme': self.scheme, }
-        http_auth = None
-        if self.username and self.password:
-            http_auth = (self.username, self.password)
-            client_args.update({'http_auth': http_auth})
+        client_args = self.__client_args
 
         bulk_arguments = {'index': index, 'doc_type': doc_type,
                           'action': action,
-                          'dynamic_write_options': dynamic_write_options}
-
+                          }
         data = data.map_partitions(bulk_save, client_cls, client_args,
                                    meta=data, **bulk_arguments)
 
