@@ -1,19 +1,26 @@
 from setuptools import setup
 
+long_description = ''
 
+with open('README.md', 'r') as f:
+    long_description = f.read()
 
 setup(
     name='dask_elk',
-    version='0.0.1',
+    version='0.1.0',
     description='Dask connection with Elasticsearch',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     url='https://github.com/avlahop/dask-elk',
     maintainer='Apostolos Vlachopoulos',
     maintainer_email='avlahop@gmail.com',
     keywords='elasticsearch dask parallel',
     licence='GPLv3',
     classifiers=[
-          "Programming Language :: Python :: 2",
-          "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 2.7",
+        'Development Status :: 4 - Beta',
+        'License :: OSI Approved :: GNU General Public License (GPL)',
     ],
     packages=[
         'dask_elk',
