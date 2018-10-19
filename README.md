@@ -46,3 +46,5 @@ query = {
 index = 'my-index'
 df = client.read(query=query, index=index, doc_type='_doc')
 ```
+
+Read documentation [here](https://dask-elk.readthedocs.io)

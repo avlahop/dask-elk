@@ -37,4 +37,7 @@ setup(
         'nose',
     ],
     test_suite='nose.collector',
+    project_urls = {
+        'Documentation': 'https://dask-elk.readthedocs.io'
+    }
 )
