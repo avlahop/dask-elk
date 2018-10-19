@@ -7,13 +7,6 @@ Dask-ELK
 ====================================
 Dask-ELK tries to immitate the ES-Hadoop functionality and connect with an Elasticsearch cluster.
 
-Index
---------
-
-* :doc: `install`
-* :doc: `Usage`
-* :doc: `DaskElasticClient API`
-
 .. toctree::
    :maxdepth: 1
    :caption: Documentation
