@@ -3,14 +3,45 @@ import dask.dataframe as dd
 
 from dask_elk.elk_entities.index import IndexRegistry
 from dask_elk.elk_entities.node import Node, NodeRegistry
+from dask_elk.helpers import make_sequence
 from dask_elk.reader import PartitionReader
 from delayed_methods import bulk_save
 
 
 class DaskElasticClient(object):
+    """
+    Basic object. Client to connect with Elasticsearch
+
+    :param list[str]|str host: The host to connect to
+    :param int port: The port to connect to
+    :param elasticsearch.Elasticsearch client_klass: The class to use to
+            create the Elasticsearch client instance
+    :param str|None username: The username if X-pack is activated
+    :param str|None password: The password if X-pack is activated
+    :param bool wan_only: If client should perform Node lookup. Set to True
+            if ELK behind firewall or if nodes not accessed directly
+    :param dict[str,T] client_kwargs: Arguments to pass to Elasticsearch
+            client object created by client_klass
+
+    """
+
     def __init__(self, host='localhost', port=9200, client_klass=Elasticsearch,
                  username=None, password=None, wan_only=False,
                  **client_kwargs):
+        """
+        Constructor for DaskElasticClient object
+
+        :param list[str] | str host: The host to connect to
+        :param int port: The port to connect to
+        :param elasticsearch.Elasticsearch client_klass: The class to use to
+                create the Elasticsearch client instance
+        :param str | None username: The username if X-pack is activated
+        :param str | None password: The password if X-pack is activated
+        :param bool wan_only: If client should perform Node lookup. Set to True
+                if ELK behind firewall or if nodes not accessed directly
+        :param dict[str, T] client_kwargs: Arguments to pass to Elasticsearch
+                client object created by client_klass
+        """
         self.__host = host
         self.__port = port
         self.__client_klass = client_klass
@@ -47,20 +78,23 @@ class DaskElasticClient(object):
              number_of_docs_per_partition=1000000, size=1000,
              fields_as_list=None,
              **kwargs):
-        """
 
-        :param dict[str, T] | None query: The query to push down to ELK.
+        """
+        Method to read from elasticsearch index/ices
+
+        :param dict(str,T)|None query: The query to push down to ELK.
         :param str index: String of the index/ices to execute query on.
         :param str doc_type: Type index belongs too
-        :param int number_of_docs_per_partition: Number of documents for each
-        partition/task created by the readers.
+        :param int number_of_docs_per_partition: Number of documents for
+            each partition/task created by the readers
         :param int size: The scroll size
-        :param str | None fields_as_list: Comma seperated list of fields to be
-        treated as object
+        :param str|None fields_as_list: Comma separated list of fields to be
+            treated as object
         :param kwargs: Additional keyword arguments to pass to the search
-        method of python Elasticsearch client
+            method of python Elasticsearch client
         :return: Dask Dataframe containing the data
         :rtype: dask.dataframe.DataFrame
+
         """
 
         fields_as_list = fields_as_list
@@ -117,12 +151,15 @@ class DaskElasticClient(object):
 
     def save(self, data, index, doc_type, action='index'):
         """
+        Save a dask dataframe to Elasticsearch
 
-        :param dask.dataframe.DataFrame data:
-        :param str index:
-        :param str doc_type:
-        :param str action:
-        :return:
+        :param dask.dataframe.DataFrame data: Dataframe to save into ELK
+        :param str index: The index to save dataframe
+        :param str doc_type: Index doc type
+        :param str action: index if indexing you data 'update' if updating data
+        :return: The data with the save applied on it
+        :rtype: dask.dataframe.DataFrame
+
         """
         client_cls = self.__client_klass
         client_args = self.__client_args
@@ -187,29 +224,11 @@ class DaskElasticClient(object):
         return partitions
 
     def __create_client_args(self, client_kwargs):
-        client_arguments = {'hosts': self.hosts, 'port': self.port}
+        client_arguments = {'hosts': make_sequence(self.hosts),
+                            'port': self.port}
         if self.username and self.password:
             client_arguments.update(
                 {'http_auth': (self.username, self.password)})
         if client_kwargs:
             client_arguments.update(client_kwargs)
-
         return client_arguments
-
-
-def get_indices_for_period_of_time(period_of_time, index_prefix,
-                                   format_string):
-    """
-
-    :param swissknife.datetime.TimeWindow period_of_time:
-    :param index_prefix:
-    :param format_string:
-    :return:
-    """
-    time_windows = period_of_time.split_per_day()
-    indices = []
-    for time_window in time_windows:
-        index = '-'.join(
-            [index_prefix, time_window.since.strftime(format_string)])
-        indices.append(index)
-    return ','.join(indices)
