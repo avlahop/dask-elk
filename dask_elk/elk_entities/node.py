@@ -41,7 +41,7 @@ class NodeRegistry(object):
         """
         node_client = elk_client.nodes
         resp = node_client.info()
-        for node_id, node_info in resp['nodes'].iteritems():
+        for node_id, node_info in resp['nodes'].items():
             publish_address = node_info['http']['publish_address']
             roles = node_info['roles']
             self.__nodes[node_id] = Node(node_id=node_id,

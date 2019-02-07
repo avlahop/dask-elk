@@ -84,7 +84,7 @@ class IndexRegistry(object):
         :rtype: pandas.DataFrame
         """
         meta = {}
-        for index in self.indices.itervalues():
+        for index in self.indices.values():
             meta.update(index.mapping)
 
         meta_df = make_meta(meta)
@@ -114,7 +114,7 @@ class IndexRegistry(object):
                                             ignore_unavailable=True)
 
             indices_dict = {}
-            for index_key, mappings in resp.iteritems():
+            for index_key, mappings in resp.items():
                 mapping = mappings['mappings'][doc_type]['properties']
                 mapping = self.__create_mappings_dtypes(mapping)
 
@@ -134,7 +134,7 @@ class IndexRegistry(object):
         """
 
         index_maps = {}
-        for field_name, field_type in mappings.iteritems():
+        for field_name, field_type in mappings.items():
             pandas_type = np.dtype(object)
             type = field_type.get('type')
 

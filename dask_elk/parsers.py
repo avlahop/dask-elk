@@ -16,7 +16,7 @@ class DocumentParser(object):
         extra_columns = [column for column in documents_columns if
                          column not in meta_columns]
 
-        for column_name, dtype in missing_columns.iteritems():
+        for column_name, dtype in missing_columns.items():
             documents[column_name] = None
             documents[column_name] = documents[column_name].astype(dtype)
 

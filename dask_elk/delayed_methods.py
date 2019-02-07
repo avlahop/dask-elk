@@ -25,7 +25,7 @@ def bulk_save(partition, client_cls, client_args, **kwargs):
         index = kwargs.get('index').format(**record)
         doc_type = kwargs.get('doc_type').format(**record)
         op_type = kwargs['action']
-        for key, value in record.iteritems():
+        for key, value in record.items():
             if isinstance(value, np.ndarray):
                 record[key] = record[key].tolist()
                 continue
