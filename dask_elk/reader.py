@@ -10,7 +10,7 @@ from dask_elk.parsers import DocumentParser
 class PartitionReader(object):
     def __init__(self, index, shard, meta, node=None, doc_type='_doc',
                  elastic_class=Elasticsearch, query=None,
-                 slice_id=None, slice_max=None, scroll_size=1000,
+                 slice_id=None, slice_max=1, scroll_size=1000,
                  client_args=None, **kwargs):
         """
         Intantiate the PartitionReader object. PartitionReader contains the

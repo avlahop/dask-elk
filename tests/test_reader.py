@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 
 from dask.dataframe.utils import make_meta
-from mock import MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from dask_elk.elk_entities.index import Index
 from dask_elk.elk_entities.node import Node

@@ -5,7 +5,7 @@ from dask_elk.elk_entities.index import IndexRegistry
 from dask_elk.elk_entities.node import Node, NodeRegistry
 from dask_elk.helpers import make_sequence
 from dask_elk.reader import PartitionReader
-from delayed_methods import bulk_save
+from .delayed_methods import bulk_save
 
 
 class DaskElasticClient(object):
@@ -121,7 +121,7 @@ class DaskElasticClient(object):
                     meta[field] = meta[field].astype(object)
 
         delayed_objs = []
-        for index in index_registry.indices.itervalues():
+        for index in index_registry.indices.values():
             for shard in index.shards:
                 no_of_docs = IndexRegistry.get_documents_count(elk_client,
                                                                query, index,
@@ -220,7 +220,7 @@ class DaskElasticClient(object):
         return part_reader
 
     def __get_number_of_partitions(self, no_of_docs, no_of_docs_per_partition):
-        partitions = max(1, no_of_docs / no_of_docs_per_partition)
+        partitions = max(1, int(no_of_docs / no_of_docs_per_partition))
         return partitions
 
     def __create_client_args(self, client_kwargs):

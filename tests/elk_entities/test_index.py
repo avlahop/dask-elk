@@ -1,7 +1,7 @@
 import unittest
 from collections import OrderedDict
 
-from mock import MagicMock
+from unittest.mock import MagicMock
 import numpy as np
 
 from dask_elk.elk_entities.index import IndexRegistry, Index

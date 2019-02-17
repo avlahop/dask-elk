@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime
 
-from mock import patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 import pandas as pd
 

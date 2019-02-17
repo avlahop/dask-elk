@@ -1,6 +1,6 @@
 import unittest
 
-from mock import MagicMock
+from unittest.mock import MagicMock
 
 from dask_elk.elk_entities.node import NodeRegistry
 

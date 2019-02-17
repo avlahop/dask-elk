@@ -6,7 +6,7 @@ import pandas as pd
 from dask.dataframe.utils import make_meta
 import dask.dataframe as dd
 
-from mock import MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from dask_elk.client import DaskElasticClient
 from dask_elk.elk_entities.index import Index, IndexRegistry

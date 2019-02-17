@@ -7,7 +7,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='dask_elk',
-    version='0.1.1',
+    version='0.2.0',
     description='Dask connection with Elasticsearch',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -17,8 +17,8 @@ setup(
     keywords='elasticsearch dask parallel',
     licence='GPLv3',
     classifiers=[
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: GNU General Public License (GPL)',
     ],
