@@ -14,3 +14,4 @@ Dask-ELK tries to immitate the ES-Hadoop functionality and connect with an Elast
    install.rst
    usage.rst
    client.rst
+   changelog.rst
