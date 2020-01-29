@@ -9,7 +9,6 @@ class IndexNotFoundException(Exception):
 
 
 class Index(object):
-
     def __init__(self, name, shards=None, mapping=None):
         """
 
@@ -56,6 +55,8 @@ class Index(object):
 
 class IndexRegistry(object):
 
+    __MINIMAL_6_x_SUPPORTED_VERSION = ("6", "8", "0")
+
     def __init__(self, nodes_registry):
         """
 
@@ -90,8 +91,7 @@ class IndexRegistry(object):
         meta_df = make_meta(meta)
         return meta_df
 
-    def get_indices_from_elasticsearch(self, elk_client, index=None,
-                                       doc_type='_doc'):
+    def get_indices_from_elasticsearch(self, elk_client, index=None, doc_type="_doc"):
         """
         Get a list of index objects with its respective mappings
         :param elasticsearch.Elasticsearch elk_client: The Elasticsearch client
@@ -99,23 +99,32 @@ class IndexRegistry(object):
         :param str index: String of comma seperated indices
         :param str doc_type: The doc type of the indices
         """
-        self.__indices = self.__get_mappings(elk_client.indices, index=index,
-                                             doc_type=doc_type)
+        cluster_info = elk_client.info()
+        es_version = tuple(cluster_info["version"]["number"].split("."))
+        self.__indices = self.__get_mappings(
+            elk_client.indices,
+            index=index,
+            doc_type=doc_type,
+            backward_compatibility=es_version >= self.__MINIMAL_6_x_SUPPORTED_VERSION,
+        )
 
         self.__get_shards_with_nodes(elk_client, index=index)
 
-    def __get_mappings(self,
-                       index_client,
-                       index,
-                       doc_type='_doc'):
+    def __get_mappings(
+        self, index_client, index, doc_type="_doc", backward_compatibility: bool = False
+    ):
 
         try:
-            resp = index_client.get_mapping(index=index, doc_type=doc_type,
-                                            ignore_unavailable=True)
+            resp = index_client.get_mapping(
+                index=index,
+                doc_type=doc_type,
+                ignore_unavailable=True,
+                include_type_name=backward_compatibility,
+            )
 
             indices_dict = {}
             for index_key, mappings in resp.items():
-                mapping = mappings['mappings'][doc_type]['properties']
+                mapping = mappings["mappings"][doc_type]["properties"]
                 mapping = self.__create_mappings_dtypes(mapping)
 
                 index_obj = Index(name=index_key, mapping=mapping)
@@ -136,37 +145,36 @@ class IndexRegistry(object):
         index_maps = {}
         for field_name, field_type in mappings.items():
             pandas_type = np.dtype(object)
-            type = field_type.get('type')
+            type = field_type.get("type")
 
             # Treat all numbers as floats to allow None values
-            if type == 'integer' or type == 'long' or type == 'float':
-                pandas_type = np.dtype('float64')
-            elif type == 'date':
-                pandas_type = np.dtype('datetime64[ns]')
+            if type == "integer" or type == "long" or type == "float":
+                pandas_type = np.dtype("float64")
+            elif type == "date":
+                pandas_type = np.dtype("datetime64[ns]")
             index_maps[field_name] = pandas_type
 
-        index_maps['_id'] = np.dtype(object)
+        index_maps["_id"] = np.dtype(object)
 
         return index_maps
 
     def __get_shards_with_nodes(self, elk_client, index=None):
 
         shard_info = elk_client.search_shards(index=index)
-        for shard in shard_info['shards']:
+        for shard in shard_info["shards"]:
             for shard_item in shard:
-                index_obj = self.__indices[shard_item['index']]
-                shard_id = shard_item['shard']
-                node_id = shard_item['node']
-                state = shard_item['state']
-                primary = shard_item['primary']
+                index_obj = self.__indices[shard_item["index"]]
+                shard_id = shard_item["shard"]
+                node_id = shard_item["node"]
+                state = shard_item["state"]
+                primary = shard_item["primary"]
                 node = self.__nodes_registry.get_node_by_id(node_id)
-                if state == 'STARTED' and primary:
+                if state == "STARTED" and primary:
                     shard = Shard(shard_id=shard_id, node=node, state=state)
                     index_obj.add_shard(shard)
 
     @staticmethod
-    def get_documents_count(elk_client, query, index, doc_type='_doc',
-                            shard=None):
+    def get_documents_count(elk_client, query, index, doc_type="_doc", shard=None):
         """
         Method to get the document count for a specified query on a specified
         index. If shard is provided then the query is executed on that
@@ -184,14 +192,13 @@ class IndexRegistry(object):
         """
         preference = None
         if shard:
-            preference = '_shards:{}'.format(shard.shard_id)
+            preference = "_shards:{}".format(shard.shard_id)
 
-        count_argurments = {'body': query, 'index': index.name,
-                            'doc_type': doc_type}
+        count_argurments = {"body": query, "index": index.name, "doc_type": doc_type}
 
         if preference:
-            count_argurments.update({'preference': preference})
+            count_argurments.update({"preference": preference})
 
         no_of_documents = elk_client.count(**count_argurments)
 
-        return no_of_documents['count']
+        return no_of_documents["count"]
