@@ -2,6 +2,14 @@
 CHANGELOG
 *********
 
+0.3.0 -2020-01-17
+=================
+Fix
+---
+- Compatibility with newer elasticsearch versions >= 6.8.0 (`#23 <https://github.com/avlahop/dask-elk/issues/22>`_ `frascuchon <https://github.com/frascuchon>`_)
+
+
+
 0.2.0 - 2019-02-17
 ==================
 
