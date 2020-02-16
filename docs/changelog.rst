@@ -6,7 +6,7 @@ CHANGELOG
 =================
 Fix
 ---
-- Compatibility with newer elasticsearch versions >= 6.8.0 (`#23 <https://github.com/avlahop/dask-elk/issues/22>`_ `frascuchon <https://github.com/frascuchon>`_)
+- Compatibility with newer elasticsearch versions >= 6.8.0 (`#23 <https://github.com/avlahop/dask-elk/issues/23>`_ `frascuchon <https://github.com/frascuchon>`_)
 
 
 
