@@ -3,8 +3,10 @@ from datetime import datetime
 
 from unittest.mock import patch, MagicMock
 
+import numpy
 import pandas as pd
 
+from dask_elk import helpers
 from dask_elk.delayed_methods import bulk_save
 
 
@@ -114,6 +116,37 @@ class TestDelayedMethods(unittest.TestCase):
 
             del record['_id']
             action.update({'doc': record})
+            expected_actions.append(action)
+
+        mock_bulk.assert_called_once()
+        mock_bulk.assert_called_with(mock_elk_class(), expected_actions,
+                                     stats_only=False)
+
+    @patch('dask_elk.delayed_methods.bulk')
+    def test_bulk_save_with_sanitized_data(self, mock_bulk):
+        mock_elk_class = MagicMock()
+        dataframe_partition = pd.DataFrame([{'a': i, 'b': numpy.random.rand(2)} for i in range(0,10)])
+        dataframe_partition['_id'] = range(10, 20)
+        index = "'index-{a}"
+
+        bulk_save(dataframe_partition,
+                  mock_elk_class,
+                  {'hosts': ['a host']},
+                  index=index, doc_type='_doc', action='update')
+
+        records = dataframe_partition.to_dict(orient='records')
+        expected_actions = []
+        for record in records:
+            action = {
+                '_index': index.format(**record),
+                '_type': '_doc',
+                '_op_type': 'update',
+                '_id': record['_id']
+
+            }
+
+            del record['_id']
+            action.update({'doc': helpers.sanitize_data(record)})
             expected_actions.append(action)
 
         mock_bulk.assert_called_once()
