@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
-from elasticsearch.helpers import scan, bulk
+from elasticsearch.helpers import bulk
+
+from dask_elk import helpers
 
 
 def bulk_save(partition, client_cls, client_args, **kwargs):
@@ -22,13 +24,10 @@ def bulk_save(partition, client_cls, client_args, **kwargs):
     actions = []
 
     for record in records:
+        record = helpers.sanitize_data(record)
         index = kwargs.get('index').format(**record)
         doc_type = kwargs.get('doc_type').format(**record)
         op_type = kwargs['action']
-        for key, value in record.items():
-            if isinstance(value, np.ndarray):
-                record[key] = record[key].tolist()
-                continue
 
         action = dict(_index=index, _type=doc_type, _op_type=op_type)
         if op_type == 'update':
