@@ -7,7 +7,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='dask_elk',
-    version='0.3.0',
+    version='0.4.0',
     description='Dask connection with Elasticsearch',
     long_description=long_description,
     long_description_content_type="text/markdown",
