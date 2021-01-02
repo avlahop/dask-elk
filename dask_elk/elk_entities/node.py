@@ -1,7 +1,7 @@
 class Node(object):
-
-    def __init__(self, node_id, publish_address,
-                 node_type=('master', 'data', 'ingest')):
+    def __init__(
+        self, node_id, publish_address, node_type=("master", "data", "ingest")
+    ):
         """
         Representation of an elasticsearch node in the cluster
         :param str node_id: The id of the node
@@ -33,20 +33,29 @@ class NodeRegistry(object):
     def nodes(self):
         return self.__nodes
 
-    def get_nodes_from_elastic(self, elk_client):
+    def get_nodes_from_elastic(self, elk_client, wan_only):
         """
+        if wan_only value is True, then set None on publish_address
 
         :param elasticsearch.Elasticsearch elk_client: Instance of an
         Elasticsearch client to connect to
         """
         node_client = elk_client.nodes
         resp = node_client.info()
-        for node_id, node_info in resp['nodes'].items():
-            publish_address = node_info['http']['publish_address']
-            roles = node_info['roles']
-            self.__nodes[node_id] = Node(node_id=node_id,
-                                         publish_address=publish_address,
-                                         node_type=tuple(roles))
+        try:
+            for node_id, node_info in resp["nodes"].items():
+                publish_address = node_info["http"]["publish_address"] if not wan_only else None
+                roles = node_info["roles"]
+                self.__nodes[node_id] = Node(
+                    node_id=node_id,
+                    publish_address=publish_address,
+                    node_type=tuple(roles),
+                )
+        except KeyError:
+            raise Exception(
+                "Could not get publish address. Try wan_only "
+                "option when creating a client"
+            )
 
     def get_node_by_id(self, node_id):
         """

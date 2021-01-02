@@ -25,9 +25,16 @@ class DaskElasticClient(object):
 
     """
 
-    def __init__(self, host='localhost', port=9200, client_klass=Elasticsearch,
-                 username=None, password=None, wan_only=False,
-                 **client_kwargs):
+    def __init__(
+        self,
+        host="localhost",
+        port=9200,
+        client_klass=Elasticsearch,
+        username=None,
+        password=None,
+        wan_only=False,
+        **client_kwargs
+    ):
         """
         Constructor for DaskElasticClient object
 
@@ -74,10 +81,16 @@ class DaskElasticClient(object):
     def wan_only(self):
         return self.__wan_only
 
-    def read(self, query=None, index=None, doc_type=None,
-             number_of_docs_per_partition=1000000, size=1000,
-             fields_as_list=None,
-             **kwargs):
+    def read(
+        self,
+        query=None,
+        index=None,
+        doc_type=None,
+        number_of_docs_per_partition=1000000,
+        size=1000,
+        fields_as_list=None,
+        **kwargs
+    ):
 
         """
         Method to read from elasticsearch index/ices
@@ -107,36 +120,38 @@ class DaskElasticClient(object):
 
         # Get nodes info first
         node_registry = NodeRegistry()
-        node_registry.get_nodes_from_elastic(elk_client)
+        node_registry.get_nodes_from_elastic(elk_client, self.wan_only)
 
         index_registry = IndexRegistry(nodes_registry=node_registry)
-        index_registry.get_indices_from_elasticsearch(elk_client,
-                                                      index=index,
-                                                      doc_type=doc_type)
+        index_registry.get_indices_from_elasticsearch(
+            elk_client, index=index, doc_type=doc_type
+        )
 
         meta = index_registry.calculate_meta()
         if fields_as_list:
-            for field in map(str.strip, fields_as_list.split(',')):
+            for field in map(str.strip, fields_as_list.split(",")):
                 if field in meta.columns:
                     meta[field] = meta[field].astype(object)
 
         delayed_objs = []
         for index in index_registry.indices.values():
             for shard in index.shards:
-                no_of_docs = IndexRegistry.get_documents_count(elk_client,
-                                                               query, index,
-                                                               shard=shard)
+                no_of_docs = IndexRegistry.get_documents_count(
+                    elk_client, query, index, shard=shard
+                )
                 node = None
                 if self.wan_only:
-                    node = Node(node_id='master', publish_address=self.hosts)
+                    node = Node(node_id="master", publish_address=self.hosts)
 
                 number_of_partitions = self.__get_number_of_partitions(
-                    no_of_docs, number_of_docs_per_partition)
+                    no_of_docs, number_of_docs_per_partition
+                )
                 for slice_id in range(number_of_partitions):
                     part_reader = self.__create_partition_reader(
                         index,
                         shard,
-                        node, query,
+                        node,
+                        query,
                         doc_type,
                         meta,
                         number_of_partitions,
@@ -149,7 +164,7 @@ class DaskElasticClient(object):
 
         return dd.from_delayed(delayed_objs, meta=meta)
 
-    def save(self, data, index, doc_type, action='index'):
+    def save(self, data, index, doc_type, action="index"):
         """
         Save a dask dataframe to Elasticsearch
 
@@ -164,17 +179,30 @@ class DaskElasticClient(object):
         client_cls = self.__client_klass
         client_args = self.__client_args
 
-        bulk_arguments = {'index': index, 'doc_type': doc_type,
-                          'action': action,
-                          }
-        data = data.map_partitions(bulk_save, client_cls, client_args,
-                                   meta=data, **bulk_arguments)
+        bulk_arguments = {
+            "index": index,
+            "doc_type": doc_type,
+            "action": action,
+        }
+        data = data.map_partitions(
+            bulk_save, client_cls, client_args, meta=data, **bulk_arguments
+        )
 
         return data
 
-    def __create_partition_reader(self, index, shard, node, query, doc_type,
-                                  meta, number_of_partitions, slice_id, size,
-                                  **scan_arguments):
+    def __create_partition_reader(
+        self,
+        index,
+        shard,
+        node,
+        query,
+        doc_type,
+        meta,
+        number_of_partitions,
+        slice_id,
+        size,
+        **scan_arguments
+    ):
         """
         Create partition reader object
         :param dask_elk.elk_entities.index.Index index: Index to fetch data
@@ -191,7 +219,8 @@ class DaskElasticClient(object):
         """
 
         part_reader = PartitionReader(
-            index=index, shard=shard,
+            index=index,
+            shard=shard,
             meta=meta,
             node=node,
             doc_type=doc_type,
@@ -205,7 +234,8 @@ class DaskElasticClient(object):
 
         if number_of_partitions > 1:
             part_reader = PartitionReader(
-                index=index, shard=shard,
+                index=index,
+                shard=shard,
                 meta=meta,
                 node=node,
                 doc_type=doc_type,
@@ -224,11 +254,9 @@ class DaskElasticClient(object):
         return partitions
 
     def __create_client_args(self, client_kwargs):
-        client_arguments = {'hosts': make_sequence(self.hosts),
-                            'port': self.port}
+        client_arguments = {"hosts": make_sequence(self.hosts), "port": self.port}
         if self.username and self.password:
-            client_arguments.update(
-                {'http_auth': (self.username, self.password)})
+            client_arguments.update({"http_auth": (self.username, self.password)})
         if client_kwargs:
             client_arguments.update(client_kwargs)
         return client_arguments
