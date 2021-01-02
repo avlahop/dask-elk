@@ -33,7 +33,7 @@ class NodeRegistry(object):
     def nodes(self):
         return self.__nodes
 
-    def get_nodes_from_elastic(self, elk_client):
+    def get_nodes_from_elastic(self, elk_client, wan_only):
         """
 
         :param elasticsearch.Elasticsearch elk_client: Instance of an
@@ -43,7 +43,7 @@ class NodeRegistry(object):
         resp = node_client.info()
         try:
             for node_id, node_info in resp["nodes"].items():
-                publish_address = node_info["http"]["publish_address"]
+                publish_address = node_info["http"]["publish_address"] if not wan_only else None
                 roles = node_info["roles"]
                 self.__nodes[node_id] = Node(
                     node_id=node_id,

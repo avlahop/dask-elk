@@ -120,8 +120,7 @@ class DaskElasticClient(object):
 
         # Get nodes info first
         node_registry = NodeRegistry()
-        if not self.wan_only:
-            node_registry.get_nodes_from_elastic(elk_client)
+        node_registry.get_nodes_from_elastic(elk_client, self.wan_only)
 
         index_registry = IndexRegistry(nodes_registry=node_registry)
         index_registry.get_indices_from_elasticsearch(
