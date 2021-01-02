@@ -35,6 +35,7 @@ class NodeRegistry(object):
 
     def get_nodes_from_elastic(self, elk_client, wan_only):
         """
+        if wan_only value is True, then set None on publish_address
 
         :param elasticsearch.Elasticsearch elk_client: Instance of an
         Elasticsearch client to connect to
